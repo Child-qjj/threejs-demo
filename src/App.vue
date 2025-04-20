@@ -4,7 +4,6 @@ import { vOnClickOutside } from '@vueuse/components'
 import { Tween, Group } from '@tweenjs/tween.js'
 import {
   Scene,
-  WebGPURenderer,
   EquirectangularReflectionMapping,
   DirectionalLight,
   Vector3,
@@ -12,7 +11,9 @@ import {
   MeshBasicMaterial,
   BoxGeometry,
   Clock,
-} from 'three/src/Three.WebGPU'
+  WebGPURenderer,
+} from 'three/src/Three.WebGPU.js'
+
 import { OBB } from 'three/examples/jsm/math/OBB.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
@@ -22,6 +23,8 @@ import useHelpers from './hooks/useHelpers'
 import useCamera from './hooks/useCamera'
 import useSceneObjects from './hooks/useSceneObjects'
 import useSelector from './hooks/useSelector'
+import useStats from './hooks/useStats'
+import useText from './hooks/useText'
 
 let renderer,
   scene,
@@ -29,11 +32,14 @@ let renderer,
   camera,
   controls,
   sceneOperations,
-  // boxSelection,
   sceneHelpers,
   transformControls,
   hitbox,
-  clock
+  clock,
+  stats,
+  editingText
+let objectRotate = true
+const textInstance = useText()
 
 const menus = [
   {
@@ -57,9 +63,16 @@ const menus = [
 const canvasRef = useTemplateRef('canvasRef')
 const visibleMenu = ref(false)
 const needAnimation = ref(false)
+const inputRef = useTemplateRef('inputRef')
+const textValue = ref('')
 const contextMenuPos = reactive({
   x: 0,
   y: 0,
+})
+
+const editingPosition = reactive({
+  x: -1,
+  y: -1,
 })
 
 const idToObject = {}
@@ -76,11 +89,15 @@ const menuStyle = computed(() => {
 // 动画循环
 function animate() {
   // console.log(containerRef.value, window.innerWidth)
+  stats.update()
   controls.update()
+
   const delta = clock.getDelta()
   Object.values(idToObject).forEach((object) => {
-    object.rotation.x += delta * Math.PI * 0.2
-    object.rotation.y += delta * Math.PI * 0.1
+    if (objectRotate) {
+      object.rotation.x += delta * Math.PI * 0.2
+      object.rotation.y += delta * Math.PI * 0.1
+    }
 
     object.updateMatrix()
     object.updateMatrixWorld()
@@ -112,7 +129,7 @@ function sortIntersections(a, b) {
   return a.distance - b.distance
 }
 
-const createObjects = (num = 100) => {
+const createObjects = async (num = 100) => {
   const size = new Vector3(1, 1, 1)
   const geometry = new BoxGeometry(size.x, size.y, size.z)
   geometry.userData.obb = new OBB()
@@ -140,9 +157,9 @@ const createObjects = (num = 100) => {
     object.userData.obb = new OBB()
 
     idToObject[object.uuid] = object
-    console.log(idToObject)
   }
 }
+
 function onResize() {
   const clientWidth = window.innerWidth
   const clientHeight = window.innerHeight
@@ -151,6 +168,7 @@ function onResize() {
   camera.updateProjectionMatrix()
   renderer.setSize(clientWidth, clientHeight)
 }
+
 const initScene = async () => {
   // 获取画布元素
   const clientWidth = window.innerWidth
@@ -291,9 +309,13 @@ const initScene = async () => {
     const intersections = selector.getPointerIntersects({ x, y }, camera, Object.values(idToObject))
     if (intersections.length > 0) {
       // determine closest intersection and highlight the respective 3D object
-
+      const obj = intersections[0].object
       intersections.sort(sortIntersections)
-      if (selector.selected === intersections[0].object) {
+      if (obj.geometry.type === 'TextGeometry') {
+        console.log('text')
+        return
+      }
+      if (selector.selected === obj) {
         return
       }
       dispatchSelected(intersections[0].object)
@@ -305,14 +327,42 @@ const initScene = async () => {
       if (parent) parent.remove(hitbox)
     }
   })
+  // 双击文字编辑
+  window.addEventListener('dblclick', (event) => {
+    const x = event.clientX / clientWidth
+    const y = event.clientY / clientHeight
+    const intersections = selector.getPointerIntersects({ x, y }, camera, Object.values(idToObject))
+    if (intersections.length > 0) {
+      // determine closest intersection and highlight the respective 3D object
+      const obj = intersections[0].object
+      if (obj.geometry.type === 'TextGeometry') {
+        editingText = obj
+        // 编辑文字
+        textValue.value = obj.userData.text
+
+        editingPosition.x = event.clientX
+        editingPosition.y = event.clientY
+        nextTick(() => {
+          inputRef.value.focus()
+          inputRef.value.select()
+        })
+      }
+    }
+  })
+
+  stats = useStats()
+  console.log(stats)
 }
 
-function dispatchSelected(object) {
+async function dispatchSelected(object) {
   selector.select(object)
   transformControls.detach()
   transformControls.attach(object)
   // boxSelection.updateBoxHelper(object, transformControls)
-
+  if (object) {
+    const text3d = await textInstance.addText(`Hey,box`)
+    object.add(text3d)
+  }
   if (needAnimation.value) {
     // 相机飞行到三维场景中某个对象附近
     object.getWorldPosition(initialPos) //获取三维场景中某个对象世界坐标
@@ -398,12 +448,14 @@ const handleOperate = (type) => {
     scene.add(newObject)
     newObject.userData.obb = new OBB()
     idToObject[newObject.uuid] = newObject
-    transformControls.detach()
-    transformControls.attach(newObject)
+    dispatchSelected(newObject)
     // boxSelection.updateBoxHelper(newObject, transformControls)
   }
   visibleMenu.value = false
-  // animate()
+}
+
+const stopRotate = () => {
+  objectRotate = !objectRotate
 }
 
 const handleRotate = (position) => {
@@ -411,6 +463,14 @@ const handleRotate = (position) => {
   if (selectedObject) {
     selectedObject.rotation[position] += Math.PI / 4
   }
+}
+
+const onEditFinish = () => {
+  textInstance.updateText(editingText, textValue.value)
+  editingText = null
+  textValue.value = ''
+  editingPosition.x = -1
+  editingPosition.y = -1
 }
 
 onMounted(() => {
@@ -422,7 +482,7 @@ onMounted(() => {
 
 <template>
   <div style="width: 100%; height: 100%; overflow: hidden">
-    <canvas ref="canvasRef"></canvas>
+    <canvas ref="canvasRef" style="width: 100%; height: 100%"></canvas>
     <div
       class="context-menu"
       v-show="visibleMenu"
@@ -441,9 +501,25 @@ onMounted(() => {
     <div @click="needAnimation = !needAnimation" class="switch-button">
       是否开启摄像头动画 {{ needAnimation }}
     </div>
+    <div
+      class="text-editor"
+      v-show="editingPosition.x !== -1 && editingPosition.y !== -1"
+      :style="{
+        left: `${editingPosition.x}px`,
+        top: `${editingPosition.y}px`,
+      }"
+    >
+      <input
+        type="text"
+        @blur="onEditFinish"
+        ref="inputRef"
+        :value="textValue"
+        autofocus
+        @input="(e) => (textValue = e.target.value)"
+      />
+    </div>
     <div @click="handleRotate('x')" class="switch-button" style="top: 150px">旋转当前物体x</div>
-    <div @click="handleRotate('y')" class="switch-button" style="top: 210px">旋转当前物体y</div>
-    <div @click="handleRotate('z')" class="switch-button" style="top: 250px">旋转当前物体z</div>
+    <div @click="stopRotate()" class="switch-button" style="top: 200px">旋转状态变更</div>
   </div>
 </template>
 
@@ -478,5 +554,10 @@ onMounted(() => {
   background-color: #f5f5f5;
   border-radius: 4px;
   user-select: none;
+}
+.text-editor {
+  position: absolute;
+  z-index: 1000;
+  width: 120px;
 }
 </style>
