@@ -12,7 +12,7 @@ import {
   BoxGeometry,
   Clock,
   WebGPURenderer,
-} from 'three/src/Three.WebGPU.js'
+} from 'three/webgpu'
 
 import { OBB } from 'three/examples/jsm/math/OBB.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls'
@@ -483,40 +483,20 @@ onMounted(() => {
 <template>
   <div style="width: 100%; height: 100%; overflow: hidden">
     <canvas ref="canvasRef" style="width: 100%; height: 100%"></canvas>
-    <div
-      class="context-menu"
-      v-show="visibleMenu"
-      :style="menuStyle"
-      v-on-click-outside="() => (visibleMenu = false)"
-    >
-      <div
-        class="menu-item"
-        v-for="menu in menus"
-        :key="menu.value"
-        @click.prevent="handleOperate(menu.value)"
-      >
+    <div class="context-menu" v-show="visibleMenu" :style="menuStyle" v-on-click-outside="() => (visibleMenu = false)">
+      <div class="menu-item" v-for="menu in menus" :key="menu.value" @click.prevent="handleOperate(menu.value)">
         {{ menu.label }}
       </div>
     </div>
     <div @click="needAnimation = !needAnimation" class="switch-button">
       是否开启摄像头动画 {{ needAnimation }}
     </div>
-    <div
-      class="text-editor"
-      v-show="editingPosition.x !== -1 && editingPosition.y !== -1"
-      :style="{
-        left: `${editingPosition.x}px`,
-        top: `${editingPosition.y}px`,
-      }"
-    >
-      <input
-        type="text"
-        @blur="onEditFinish"
-        ref="inputRef"
-        :value="textValue"
-        autofocus
-        @input="(e) => (textValue = e.target.value)"
-      />
+    <div class="text-editor" v-show="editingPosition.x !== -1 && editingPosition.y !== -1" :style="{
+      left: `${editingPosition.x}px`,
+      top: `${editingPosition.y}px`,
+    }">
+      <input type="text" @blur="onEditFinish" ref="inputRef" :value="textValue" autofocus
+        @input="(e) => (textValue = e.target.value)" />
     </div>
     <div @click="handleRotate('x')" class="switch-button" style="top: 150px">旋转当前物体x</div>
     <div @click="stopRotate()" class="switch-button" style="top: 200px">旋转状态变更</div>
@@ -535,15 +515,18 @@ onMounted(() => {
     0px 6px 16px 0px rgba(0, 0, 0, 0.08),
     0px 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
+
 .menu-item {
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 4px;
   user-select: none;
+
   &:hover {
     background-color: #f5f5f5;
   }
 }
+
 .switch-button {
   position: fixed;
   left: 50px;
@@ -555,6 +538,7 @@ onMounted(() => {
   border-radius: 4px;
   user-select: none;
 }
+
 .text-editor {
   position: absolute;
   z-index: 1000;

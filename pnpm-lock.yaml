@@ -18,8 +18,8 @@ importers:
         specifier: ^13.1.0
         version: 13.1.0(vue@3.5.13)
       three:
-        specifier: ^0.175.0
-        version: 0.175.0
+        specifier: ^0.178.0
+        version: 0.178.0
       vue:
         specifier: ^3.5.13
         version: 3.5.13
@@ -1337,8 +1337,8 @@ packages:
     resolution: {integrity: sha512-szhWDqNNI9etJUvbZ1/cx1StnZx8yMmFxme48SwR4dty4ioSY50KEZlpv0qAfgc1fpRzuh9hBXEzoCpJ779dLg==}
     engines: {node: ^14.18.0 || >=16.0.0}
 
-  three@0.175.0:
-    resolution: {integrity: sha512-nNE3pnTHxXN/Phw768u0Grr7W4+rumGg/H6PgeseNJojkJtmeHJfZWi41Gp2mpXl1pg1pf1zjwR4McM1jTqkpg==}
+  three@0.178.0:
+    resolution: {integrity: sha512-ybFIB0+x8mz0wnZgSGy2MO/WCO6xZhQSZnmfytSPyNpM0sBafGRVhdaj+erYh5U+RhQOAg/eXqw5uVDiM2BjhQ==}
 
   totalist@3.0.1:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
@@ -2694,7 +2694,7 @@ snapshots:
       '@pkgr/core': 0.2.1
       tslib: 2.8.1
 
-  three@0.175.0: {}
+  three@0.178.0: {}
 
   totalist@3.0.1: {}
 
